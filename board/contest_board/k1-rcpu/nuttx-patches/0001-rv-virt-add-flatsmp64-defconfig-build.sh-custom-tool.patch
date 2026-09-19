@@ -136,7 +136,7 @@ diff --git a/tools/build.sh b/tools/build.sh
 index 8ea9183a33d..bc909303d90 100755
 --- a/tools/build.sh
 +++ b/tools/build.sh
-@@ -132,6 +132,39 @@ function build_board_cmake()
+@@ -132,6 +132,37 @@ function build_board_cmake()
      EXTRA_FLAGS=$(echo "$EXTRA_FLAGS" | sed 's/-Wno-cpp//' | xargs)
    fi
    export VELA_EXTRA_FLAGS="$EXTRA_FLAGS"
@@ -154,8 +154,6 @@ index 8ea9183a33d..bc909303d90 100755
 +    if ! cmake -B ${CMAKE_BINARY_DIR} -S ${NUTTXDIR} \
 +        -DBOARD_CONFIG="${ROOTDIR}/${board_config}" \
 +        -DCUSTOM_MODULE_PATH="${ROOTDIR}/build/cmake" \
-+        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 +        -DCMAKE_C_COMPILER="${CUSTOM_COMPILER}" \
 +        -DCMAKE_ASM_COMPILER="${CUSTOM_COMPILER}" \
 +        -DEXTRA_FLAGS="${EXTRA_FLAGS}" ${CMAKE_GENERATOR}; then
@@ -176,7 +174,7 @@ index 8ea9183a33d..bc909303d90 100755
    # let use lunch directily
    echo " lunch $1 ${CMAKE_BINARY_DIR} "
    lunch $1 ${CMAKE_BINARY_DIR}
-@@ -280,4 +313,3 @@ if [ -z "$CMAKE_BUILD" ]; then
+@@ -280,4 +311,3 @@ if [ -z "$CMAKE_BUILD" ]; then
  else
    build_board_cmake ${board_config} $*
  fi

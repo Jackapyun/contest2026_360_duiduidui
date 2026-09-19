@@ -97,7 +97,6 @@ FIRMWARE="$BUILD_DIR/nuttx"; FIRMWARE_BIN="$BUILD_DIR/nuttx.bin"
 TTY_AP="/dev/ttyUSB0"; TTY_RCPU="/dev/ttyACM0"
 OPENOCD_GDB_PORT=1024; OPENOCD_TELNET_PORT=4444; OPENOCD_SPEED=8000; BAUD=115200
 ENTRY_ADDR=0x30000100     # DDR remap 布局入口（重要）
-export CCACHE_DIR="$WORK_DIR/.ccache"
 ```
 
 ---
@@ -111,9 +110,8 @@ cd $VELA_WORK
 
 - board_config 必须是真实目录（不能写短名）；build.sh 是增量（cmake+ninja）。
 - 产物：`cmake_out/muse_pi_pro_rcpu_nsh/nuttx`（ELF32）、`nuttx.bin`。
-- ccache 报 Read-only：`export CCACHE_DIR=$WORK_DIR/.ccache`。
 - 查看：`riscv-none-elf-size $FIRMWARE`、`readelf -h`（Entry `0x30000100`）。
-- 详细编译/nsh-min/踩坑见 `references/build.md`。
+- 详细编译（FLAT / PROTECTED 两套）/踩坑见 `references/build.md`。
 
 ---
 
@@ -291,7 +289,7 @@ devmem 0xC088C030 32 1        # MCU 运行控制
 
 | 文件 | 内容 |
 |---|---|
-| `references/build.md` | 编译命令、nsh-min、产物体积、历史踩坑、工具链、DDR remap |
+| `references/build.md` | 编译命令（FLAT / PROTECTED）、产物体积、历史踩坑、工具链、DDR remap |
 | `references/debug.md` | 接线、前置、OpenOCD/GDB 加载、串口验收、排障表、devmem 表 |
 | `references/qemu.md` | QEMU（knsh64/ksmp64/flat ostest） |
 

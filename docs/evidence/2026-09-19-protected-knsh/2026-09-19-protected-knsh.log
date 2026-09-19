@@ -1,0 +1,1070 @@
+================================================================================
+ openvela OS 移植验证证据 —— PROTECTED (Kernel Build) / EVIDENCE LOG
+ 目标板 : SpaceMiT MUSE Pi Pro (K1)  ->  RCPU = Nuclei N308 (RV32, M-Mode, M+U)
+ 系统   : openvela (NuttX based), BUILD_PROTECTED (2-pass), RV32IMAFDC
+ 生成时间: 2026-09-19 18:15:55
+ 用途   : 比赛实物作品验证依据 —— 证明 RCPU 上 PROTECTED 内核/用户隔离构建可启动、
+          用户态 NSH 可用、系统调用门(ECALLU)工作、用户态 OSTEST 全量通过
+ 构建口径: 规范构建（./build.sh，不使用 ccache launcher）—— 与评委全新 clone 所得产物一致
+================================================================================
+
+ 一、结论 (VERDICT)
+--------------------------------------------------------------------------------
+  [PASS] 1. PROTECTED 2-pass 构建成功 —— 产出两个镜像
+          内核 nuttx      : entry 0x30000100, 119704 B bin, md5 5155eb34fceff42986461e18ffc6eafa
+          用户 nuttx_user : LMA   0x30080000, 118704 B bin, md5 92a7499b598bbfba385ae8d08b1f840f
+          (内核 ELF 不内嵌用户镜像 => 必须分别 load 两个 blob)
+  [PASS] 2. 真机启动成功进入 NSH
+          串口: 'BCD' -> 'NuttShell (NSH)' -> 'nsh>'
+          $ uname -a -> NuttX 0.0.0 e27a03de8fc-dirty Sep 19 2026 18:12:26 risc-v muse_pi_pro_rcpu
+  [PASS] 3. PMP 内核/用户隔离分区生效（3 条 TOR 全部装上）
+          pmpcfg0=0x80f08, pmpaddr0=0xc020000, pmpaddr1=0xc060000, pmpaddr2=0x3ffffc00
+            entry0 TOR, 无 R/W/X : [0x00000000, 0x30080000) 内核区, M-only
+            entry1 TOR, RWX      : [0x30080000, 0x30180000) 用户区
+            entry2 TOR, 无 R/W/X : [0x30180000, top)        兜底 deny(U/S), 无 L 故 M 态外设不受限
+  [PASS] 4. 用户态执行的实证（ECALLU 系统调用门）
+          在内核 dispatch_syscall 下断点, 从串口敲 'uname -a' -> 断点命中:
+            mepc   = 0x3008ae06   <- 落在用户镜像区间 [0x30080000,0x30180000)
+            mcause = 0x00000008   <- ECALL from U-mode (ECALLU)
+            mepc 处指令 = 'ecall' <- 用户态代码自己发起的系统调用
+          即: NSH 确实运行在 U-mode, 经 ECALLU 陷入内核, 而非 FLAT 的直接内核调用
+  [PASS] 5. 用户态 OSTEST 全量通过
+          28 项测试执行完毕, 0 条 ERROR / FAIL / ASSERT / PANIC
+          末行 'ostest_main: Exiting with status 0'; 结束后回到 'nsh>'
+          (较 FLAT 少 3 项: FPU test / spinlock test / wdog test —— 这些在 ostest_main.c 中由
+           #ifdef CONFIG_BUILD_FLAT 包住, PROTECTED 下本就不编译, 非失败)
+
+ 二、被测固件与源码版本
+--------------------------------------------------------------------------------
+  board config    : vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/knsh
+  nuttx           : wip/k1-rcpu-protected-build @ e27a03de8fc6968c80ea506e2f88c53a4a444b8c
+  vendor/SpaceMiT : wip/rcpu-bringup-uart-irq-fix @ fe8530a6636ccd66faa58562a29523b8fc6bcb75
+  构建开关        : CONFIG_BUILD_PROTECTED=y  CONFIG_ARCH_USE_MPU=y
+                    CONFIG_LIB_SYSCALL=y  CONFIG_NUTTX_USERSPACE=0x30080000
+  烧录            : SEGGER J-Link + SpaceMiT OpenOCD (target rcpu) + riscv-none-elf-gdb
+  串口            : RCPU r_uart0 -> /dev/ttyACM0, 115200 8N1
+
+ 三、复现说明（请连同 4.5 节一起阅读）
+----------------------------------------
+  * 构建口径：`build.sh` 原先通过 CMAKE_C_COMPILER_LAUNCHER 强制调用 ccache
+    （该行系本队补丁引入，上游 build.sh 无此设置）。ccache 既会让构建依赖外部
+    程序是否安装，也会改变编译器 `__FILE__` 的路径渲染，使镜像体积相差约 2 KB。
+    已从补丁中移除该 launcher——因此**任何环境（有无 ccache）的全新 clone 构建
+    产物一致**，与本证据所用镜像同源。
+  * 体积可复现，md5 不可跨次复现：镜像内嵌编译时刻（`__DATE__/__TIME__`，
+    见 `nuttx/libs/libc/misc/lib_utsname.c`），故重新构建的 md5 必然不同。
+    上文 md5 是**本次实测并烧录的那个镜像**的指纹；判定一致性请比对体积与
+    `uname -a` 中的版本串。
+
+================================================================================
+ PART 1 / 5   编译 (PROTECTED, build.sh --cmake)
+================================================================================
+  $ cd vela-workspace
+  $ ./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/knsh \
+        --cmake -c prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc -j8
+  ...
+  [2579/2579] Generating System.map      exit status = 0
+  (另: FLAT 配置 configs/nsh 同样编译通过并已单独出证据 log)
+
+================================================================================
+ PART 2 / 5   JTAG 烧录与启动（两个 blob）
+================================================================================
+====================================================================
+ openvela PROTECTED (kernel build / 2-pass) on K1 RCPU — JTAG flash
+ board config : vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/knsh
+ build mode   : 规范构建（./build.sh，无 ccache launcher；等效评委全新 clone）
+ date   : 2026-09-19 18:13:41 CST
+ kernel : nuttx      entry 0x30000100  119704 B bin  md5 5155eb34fceff42986461e18ffc6eafa
+ user   : nuttx_user LMA   0x30080000  118704 B bin  md5 92a7499b598bbfba385ae8d08b1f840f
+ note   : 2-pass 构建，内核 ELF 不内嵌用户镜像 => 必须分别 load 两个 blob
+====================================================================
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x3000d890 in ?? ()
+JTAG tap: post.unknown tap/device found: 0x28501c0d (mfg: 0x606 (Shenzhen Chixingzhe Technology Co Ltd), part: 0x8501, ver: 0x2)
+JTAG tap: pre.unknown enabled
+JTAG tap: k1.cpu enabled
+DDR_REMAP_BASE = 0x00100000
+Loading section .note.gnu.build-id, size 0x24 lma 0x30000000
+Loading section .text, size 0x19e2c lma 0x30000100
+Loading section .rodata, size 0x3064 lma 0x30019f30
+Loading section .srodata.g_nullstring, size 0x7 lma 0x3001cf94
+Loading section .srodata.cst8, size 0x48 lma 0x3001cfa0
+Loading section .srodata.g_syslog_channel, size 0x4 lma 0x3001cfe8
+Loading section .srodata.g_default_channel, size 0x8 lma 0x3001cfec
+Loading section .srodata.labels.0, size 0x5 lma 0x3001cff4
+Loading section .srodata.g_release, size 0x6 lma 0x3001cffc
+Loading section .srodata.g_arch, size 0x7 lma 0x3001d004
+Loading section .data, size 0x37c lma 0x3001d00c
+Loading section .sdata.g_syslog_mask, size 0x1 lma 0x3001d388
+Loading section .sdata.g_readytorun, size 0x8 lma 0x3001d38c
+Loading section .sdata.g_idle_topstack, size 0x4 lma 0x3001d394
+Start address 0x30000100, load size 119466
+Transfer rate: 92 KB/sec, 5973 bytes/write.
+Loading section .userspace, size 0x38 lma 0x30080000
+Loading section .text, size 0x1cd3c lma 0x30080038
+Loading section .data, size 0x23c lma 0x3009cd74
+Start address 0x30080038, load size 118704
+Transfer rate: 99 KB/sec, 11870 bytes/write.
+0x30080000:	0x30087210	0x30080038	0x3009cd74	0x3009cd74
+background polling: on
+TAP: k1.cpu (enabled)
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===
+
+================================================================================
+ PART 3 / 5   取证 #1：PMP 分区 + 特权级
+================================================================================
+====================================================================
+ PROTECTED 取证 #1：PMP 分区 + 特权级（GDB attach，不 reset）
+ date: 2026-09-19 18:13:55 CST
+ 判读：N308 的 PMP A 字段在 bits[4:3]（非标准 bits[3:2]）
+       A=0x08 => 1<<3 = TOR；pmpaddr<<2 = 区间上界（TOR 下界 = 前一条上界）
+====================================================================
+0x3000d890 in up_idle () at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_idle.c:75
+75	}
+--- halt 时 PC ---
+PC = 0x3000d890
+up_idle + 4 in section .text
+
+--- PMP CSR ---
+pmpcfg0        0x80f08	528136
+pmpcfg1        0x0	0
+pmpcfg2        0x0	0
+pmpcfg3        0x0	0
+pmpaddr0       0xc020000	201457664
+pmpaddr1       0xc060000	201719808
+pmpaddr2       0x3ffffc00	1073740800
+pmpaddr3       0x0	0
+pmpaddr4       0x0	0
+pmpaddr5       0x0	0
+pmpaddr6       0x0	0
+pmpaddr7       0x0	0
+
+--- PMP 分区解码 (TOR: [prev<<2, this<<2)) ---
+entry0 cfg=0x08 A=1 : [0x00000000, 0x30080000)  <- 内核, M-only(无R/W/X)
+entry1 cfg=0x0f A=1 : [0x30080000, 0x30180000)  <- 用户, RWX
+entry2 cfg=0x08 A=1 : [0x30180000, top)      <- 兜底 deny(M 态不受限)
+
+--- mstatus ---
+mstatus        0x80006088	SD:1 VM:00 MXR:0 PUM:0 MPRV:0 XS:0 FS:3 MPP:0 HPP:0 SPP:0 MPIE:1 HPIE:0 SPIE:0 UPIE:0 MIE:1 HIE:0 SIE:0 UIE:0
+mstatus.MPP = 0x0 (0=U, 3=M)
+(halt 时 CPU 在内核 idle 循环, MPP 仅作旁证; 决定性证据见取证 #2)
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===
+
+================================================================================
+ PART 4 / 5   取证 #2：系统调用路径（ECALLU）
+================================================================================
+====================================================================
+ PROTECTED 取证 #2：系统调用路径实证（ECALLU 门）
+ 方法 : 内核 dispatch_syscall 下断点 → 串口敲 'uname -a' → 读 mepc/mcause
+ 判据 : 用户 blob 链接于 0x30080000；mepc ∈ [0x30080000,0x30180000)
+        且 mcause low12 == 8（ECALL from U-mode）→ 命令确由用户态发起
+ date : 2026-09-19 18:13:59 CST
+====================================================================
+0x3000d890 in up_idle () at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_idle.c:75
+75	}
+Breakpoint 1 at 0x30001830: file /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_swint.c, line 87.
+[gdb] 断点已设 @ dispatch_syscall，继续运行等待用户态 syscall...
+
+Breakpoint 1, dispatch_syscall (nbr=65, parm1=1, parm2=805964447, parm3=1, parm4=1, parm5=805964447, parm6=83, context=0x300a0904) at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_swint.c:87
+87	  struct tcb_s *rtcb         = this_task();
+
+>>> BREAKPOINT HIT @ dispatch_syscall
+mepc  (user return PC) = 0x3008ae06
+mcause                  = 0x00000008  (low12=0x8, 8=ECALLU)
+用户镜像区间            = [0x30080000, 0x30180000)
+判定: mepc 落在 用户镜像区间
+
+--- mepc 处指令（应为用户态 ecall）---
+   0x3008ae06:	ecall
+   0x3008ae0a:	nop
+--- syscall 参数（a0=syscall#）---
+a0             0x41	65
+a1             0x1	1
+a2             0x300a0a9f	805964447
+a3             0x1	1
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===
+
+================================================================================
+ PART 5 / 5   RCPU 串口控制台（bringup + 用户态 NSH + OSTEST）
+================================================================================
+BCD
+NuttShell (NSH)
+nsh> uname -a
+NuttX 0.0.0 e27a03de8fc-dirty Sep 19 2026 18:12:26 risc-v muse_pi_pro_rcpu
+nsh> help
+help usage:  help [-v] [<cmd>]
+
+    .           cp          exit        ls          rm          uname       
+    [           cmp         expr        mkdir       rmdir       umount      
+    ?           dirname     false       mkrd        set         unset       
+    alias       dd          fdinfo      mount       sleep       uptime      
+    unalias     df          free        mv          source      usleep      
+    basename    dmesg       help        pidof       test        watch       
+    break       echo        hexdump     printf      time        xd          
+    cat         env         kill        ps          true        wait        
+    cd          exec        pkill       pwd         truncate    
+
+Builtin Apps:
+    dumpstack    nsh          sh           ostest       getprime     hello        
+nsh> ostest
+stdio_test: write fd=1
+stdio_test: Standard I/O Check: printf
+stdio_test: write fd=2
+stdio_test: Standard I/O Check: fprintf to stderr
+ostest_main: putenv(Variable1=BadValue3)
+ostest_main: setenv(Variable1, GoodValue1, TRUE)
+ostest_main: setenv(Variable2, BadValue1, FALSE)
+ostest_main: setenv(Variable2, GoodValue2, TRUE)
+ostest_main: setenv(Variable3, GoodValue3, FALSE)
+ostest_main: setenv(Variable3, BadValue2, FALSE)
+show_variable: Variable=Variable1 has value=GoodValue1
+show_variable: Variable=Variable2 has value=GoodValue2
+show_variable: Variable=Variable3 has value=GoodValue3
+ostest_main: Started user_main at PID=4
+
+user_main: Begin argument test
+user_main: Started with argc=5
+user_main: argv[0]="ostest"
+user_main: argv[1]="Arg1"
+user_main: argv[2]="Arg2"
+user_main: argv[3]="Arg3"
+user_main: argv[4]="Arg4"
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        4
+mxordblk    d7ff8    d7ff8
+uordblks     5ad8     5ad8
+fordblks    dc960    dc960
+
+user_main: getopt() test
+getopt():  Simple test
+getopt():  Invalid argument
+getopt():  Missing optional argument
+getopt_long():  Simple test
+getopt_long():  No short options
+getopt_long():  Argument for --option=argument
+getopt_long():  Invalid long option
+getopt_long():  Mixed long and short options
+getopt_long():  Invalid short option
+getopt_long():  Missing optional arguments
+getopt_long_only():  Mixed long and short options
+getopt_long_only():  Single hyphen long options
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        4
+mxordblk    d7ff8    d7ff8
+uordblks     5ad8     5ad8
+fordblks    dc960    dc960
+
+user_main: libc tests
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        4
+mxordblk    d7ff8    d7ff8
+uordblks     5ad8     5ad8
+fordblks    dc960    dc960
+show_variable: Variable=Variable1 has value=GoodValue1
+show_variable: Variable=Variable2 has value=GoodValue2
+show_variable: Variable=Variable3 has value=GoodValue3
+show_variable: Variable=Variable1 has no value
+show_variable: Variable=Variable2 has value=GoodValue2
+show_variable: Variable=Variable3 has value=GoodValue3
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        5
+mxordblk    d7ff8    d7ff8
+uordblks     5ad8     5ab8
+fordblks    dc960    dc980
+show_variable: Variable=Variable1 has no value
+show_variable: Variable=Variable2 has no value
+show_variable: Variable=Variable3 has no value
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        4
+mxordblk    d7ff8    d7ff8
+uordblks     5ab8     5a40
+fordblks    dc980    dc9f8
+
+user_main: setvbuf test
+setvbuf_test: Test NO buffering
+setvbuf_test: Using NO buffering
+
+setvbuf_test: Test default FULL buffering
+setvbuf_test: Using default FULL buffering
+
+setvbuf_test: Test FULL buffering, buffer size 64
+setvbuf_test: Using FULL buffering, buffer size 64
+
+setvbuf_test: Test FULL buffering, pre-allocated buffer
+setvbuf_test: Using FULL buffering, pre-allocated buffer
+
+setvbuf_test: Test LINE buffering, buffer size 64
+setvbuf_test: Using LINE buffering, buffer size 64
+
+setvbuf_test: Test FULL buffering, pre-allocated buffer
+setvbuf_test: Using FULL buffering, pre-allocated buffer
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        4
+mxordblk    d7ff8    d7ff8
+uordblks     5a40     5a40
+fordblks    dc9f8    dc9f8
+
+user_main: /dev/null test
+dev_null: Read 0 bytes from /dev/null
+dev_null: Wrote 1024 bytes to /dev/null
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        4
+mxordblk    d7ff8    d7ff8
+uordblks     5a40     5a40
+fordblks    dc9f8    dc9f8
+
+user_main: task_restart test
+
+Test task_restart()
+restart_main: setenv(VarName, VarValue, TRUE)
+restart_main: Started restart_main at PID=5
+restart_main: Started with argc=4
+restart_main: argv[0]="ostest"
+restart_main: argv[1]="This is argument 1"
+restart_main: argv[2]="Argument 2 here"
+restart_main: argv[3]="Lastly, the 3rd argument"
+restart_main: Variable=VarName has value=VarValue
+restart_main: Started with argc=4
+restart_main: argv[0]="ostest"
+restart_main: argv[1]="This is argument 1"
+restart_main: argv[2]="Argument 2 here"
+restart_main: argv[3]="Lastly, the 3rd argument"
+restart_main: Variable=VarName has value=VarValue
+restart_main: Started restart_main at PID=5
+restart_main: Started with argc=4
+restart_main: argv[0]="ostest"
+restart_main: argv[1]="This is argument 1"
+restart_main: argv[2]="Argument 2 here"
+restart_main: argv[3]="Lastly, the 3rd argument"
+restart_main: Variable=VarName has value=VarValue
+restart_main: Exiting
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        5
+mxordblk    d7ff8    d3ff8
+uordblks     5a40     7a80
+fordblks    dc9f8    da9b8
+
+user_main: waitpid test
+
+Test waitpid()
+waitpid_start_child: Started waitpid_main at PID=6
+waitpid_main: PID 6 Started
+waitpid_start_child: Started waitpid_main at PID=7
+waitpid_main: PID 7 Started
+waitpid_start_child: Started waitpid_main at PID=8
+waitpid_main: PID 8 Started
+waitpid_test: Waiting for PID=6 with waitpid()
+waitpid_main: PID 6 exitting with result=14
+waitpid_test: PID 6 waitpid succeeded with stat_loc=0e00
+waitpid_last: Waiting for PID=8 with waitpid()
+waitpid_main: PID 7 exitting with result=14
+waitpid_main: PID 8 exitting with result=14
+waitpid_last: PASS: PID 8 waitpid succeeded with stat_loc=0e00
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        7
+mxordblk    d3ff8    cbff8
+uordblks     7a80     ba90
+fordblks    da9b8    d69a8
+
+user_main: mutex test
+Initializing mutex
+Starting thread 1
+Starting thread 2
+		Thread1	Thread2
+	Loops	32	32
+	Errors	0	0
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         7        6
+mxordblk    cbff8    d37f8
+uordblks     ba90     6a88
+fordblks    d69a8    db9b0
+
+user_main: timed mutex test
+mutex_test: Initializing mutex
+mutex_test: Starting thread
+pthread:  Started
+pthread:  Waiting for lock or timeout
+mutex_test: Unlocking
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+pthread:  Waiting for lock or timeout
+pthread:  Got the lock
+mutex_test: Re-locking
+pthread:  Waiting for lock or timeout
+pthread:  Got the timeout.  Terminating
+mutex_test: PASSED
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        5
+mxordblk    d37f8    d57f8
+uordblks     6a88     6280
+fordblks    db9b0    dc1b8
+
+user_main: cancel test
+cancel_test: Test 1a: Normal Cancellation
+cancel_test: Starting thread
+start_thread: Initializing mutex
+start_thread: Initializing cond
+start_thread: Parent thread priority=150
+start_thread: Starting thread
+start_thread: Yielding
+sem_waiter: Taking mutex
+sem_waiter: Starting wait for condition
+cancel_test: Canceling thread
+cancel_test: Joining
+cancel_test: waiter exited with result=0xffffffff
+cancel_test: PASS thread terminated with PTHREAD_CANCELED
+cancel_test: Test 2: Asynchronous Cancellation
+... Skipped
+cancel_test: Test 3: Cancellation of detached thread
+cancel_test: Re-starting thread
+restart_thread: Destroying cond
+restart_thread: Destroying mutex
+restart_thread: Re-starting thread
+start_thread: Initializing mutex
+start_thread: Initializing cond
+start_thread: Parent thread priority=150
+start_thread: Starting thread
+start_thread: Yielding
+sem_waiter: Taking mutex
+sem_waiter: Starting wait for condition
+cancel_test: Canceling thread
+cancel_test: Joining
+cancel_test: PASS pthread_join failed with status=ESRCH or EINVAL
+cancel_test: Test 5: Non-cancelable threads
+cancel_test: Re-starting thread (non-cancelable)
+restart_thread: Destroying cond
+restart_thread: Destroying mutex
+restart_thread: Re-starting thread
+start_thread: Initializing mutex
+start_thread: Initializing cond
+start_thread: Parent thread priority=150
+start_thread: Starting thread
+start_thread: Yielding
+sem_waiter: Taking mutex
+sem_waiter: Starting wait for condition
+sem_waiter: Setting non-cancelable
+cancel_test: Canceling thread
+cancel_test: Joining
+sem_waiter: Releasing mutex
+sem_waiter: Setting cancelable
+cancel_test: waiter exited with result=0xffffffff
+cancel_test: PASS thread terminated with PTHREAD_CANCELED
+cancel_test: Test 6: Cancel message queue wait
+cancel_test: Starting thread (cancelable)
+Skipped
+cancel_test: Test 7: Cancel signal wait
+cancel_test: Starting thread (cancelable)
+Skipped
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        5
+mxordblk    d57f8    d3ff8
+uordblks     6280     7a80
+fordblks    dc1b8    da9b8
+
+user_main: robust test
+robust_test: Initializing mutex
+robust_test: Starting thread
+robust_waiter: Taking mutex
+robust_waiter: Wake parent start wait mutex
+robust_waiter: Exiting with mutex locked
+robust_test: Take the lock again
+robust_test: Make the mutex consistent again.
+robust_test: Take the lock again
+robust_test: Joining
+robust_test: waiter exited with result=0
+robust_test: Test complete with nerrors=0
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        5
+mxordblk    d3ff8    d3ff8
+uordblks     7a80     7a80
+fordblks    da9b8    da9b8
+
+user_main: semaphore test
+sem_test: Initializing semaphore to 0
+sem_test: Starting waiter thread 1
+sem_test: Set thread 1 priority to 160
+waiter_func: Thread 1 Started
+sem_test: Starting waiter thread 2
+waiter_func: Thread 1 initial semaphore value = 0
+sem_test: Set thread 2 priority to 150
+waiter_func: Thread 1 waiting on semaphore
+waiter_func: Thread 2 Started
+waiter_func: Thread 2 initial semaphore value = -1
+waiter_func: Thread 2 waiting on semaphore
+sem_test: Starting poster thread 3
+sem_test: Set thread 3 priority to 140
+poster_func: Thread 3 started
+poster_func: Thread 3 semaphore value = -2
+poster_func: Thread 3 posting semaphore
+waiter_func: Thread 1 awakened
+waiter_func: Thread 1 new semaphore value = -1
+poster_func: Thread 3 new semaphore value = -1
+waiter_func: Thread 1 done
+poster_func: Thread 3 semaphore value = -1
+poster_func: Thread 3 posting semaphore
+waiter_func: Thread 2 awakened
+poster_func: Thread 3 new semaphore value = 0
+waiter_func: Thread 2 new semaphore value = 0
+poster_func: Thread 3 done
+waiter_func: Thread 2 done
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        7
+mxordblk    d3ff8    d17f8
+uordblks     7a80     7290
+fordblks    da9b8    db1a8
+
+user_main: timed semaphore test
+semtimed_test: Initializing semaphore to 0
+semtimed_test: Waiting for two second timeout
+semtimed_test: PASS: first test returned timeout
+BEFORE: (38 sec, 837104797 nsec)
+AFTER:  (40 sec, 838012695 nsec)
+semtimed_test: Starting poster thread
+semtimed_test: Set thread 1 priority to 160
+poster_func: Waiting for 10 ms
+semtimed_test: Starting poster thread 3
+semtimed_test: Set low priority thread to 140
+semtimed_test: Waiting for two second timeout
+poster_func: Waiting for 10 ms
+poster_func: Posting
+semtimed_test: PASS: sem_timedwait succeeded
+BEFORE: (40 sec, 840782165 nsec)
+AFTER:  (40 sec, 849098205 nsec)
+poster_func: Posting
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         7        6
+mxordblk    d17f8    d37f8
+uordblks     7290     6a88
+fordblks    db1a8    db9b0
+
+user_main: condition variable test
+cond_test: Initializing mutex
+cond_test: Initializing cond
+cond_test: Starting waiter
+cond_test: Set thread 1 priority to 160
+waiter_thread: Started
+cond_test: Starting signaler
+cond_test: Set thread 2 priority to 140
+thread_signaler: Started
+thread_signaler: Terminating
+cond_test: signaler terminated, now cancel the waiter
+cond_test: 	Waiter	Signaler
+cond_test: Loops	32	32
+cond_test: Errors	0	0
+cond_test:
+cond_test: 0 times, waiter did not have to wait for data
+cond_test: 0 times, data was already available when the signaler run
+cond_test: 0 times, the waiter was in an unexpected state when the signaler ran
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        6
+mxordblk    d37f8    d37f8
+uordblks     6a88     6a88
+fordblks    db9b0    db9b0
+
+user_main: pthread_exit() test
+pthread_exit_test: Started pthread_exit_main at PID=27
+pthread_exit_main 27: Starting pthread_exit_thread
+pthread_exit_main 27: Sleeping for 50 ms
+pthread_exit_thread 28: Sleeping for 100 ms
+pthread_exit_thread 28: Still running...
+pthread_exit_main 27: Calling pthread_exit()
+pthread_exit_thread 28: Exiting
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        6
+mxordblk    d37f8    d17f8
+uordblks     6a88     8288
+fordblks    db9b0    da1b0
+
+user_main: pthread_rwlock test
+pthread_rwlock: Initializing rwlock
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        6
+mxordblk    d17f8    d37f8
+uordblks     8288     6a88
+fordblks    da1b0    db9b0
+
+user_main: pthread_rwlock_cancel test
+pthread_rwlock_cancel: Starting test
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        6
+mxordblk    d37f8    d37f8
+uordblks     6a88     6a88
+fordblks    db9b0    db9b0
+
+user_main: timed wait test
+thread_waiter: Initializing mutex
+timedwait_test: Initializing cond
+timedwait_test: Starting waiter
+timedwait_test: Set thread 2 priority to 202
+thread_waiter: Taking mutex
+timedwait_test: Joining
+thread_waiter: Starting 1 second wait for condition
+thread_waiter: pthread_cond_timedwait timed out
+thread_waiter: Releasing mutex
+thread_waiter: Exit with status 0x12345678
+timedwait_test: waiter exited with result=0x12345678
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        5
+mxordblk    d37f8    d57f8
+uordblks     6a88     6280
+fordblks    db9b0    dc1b8
+
+user_main: message queue test
+mqueue_test: Starting receiver
+mqueue_test: Set receiver priority to 160
+receiver_thread: Starting
+mqueue_test: Starting sender
+mqueue_test: Set sender thread priority to 140
+mqueue_test: Waiting for sender to complete
+sender_thread: Starting
+receiver_thread: mq_receive succeeded on msg 0
+sender_thread: mq_send succeeded on msg 0
+receiver_thread: mq_receive succeeded on msg 1
+sender_thread: mq_send succeeded on msg 1
+receiver_thread: mq_receive succeeded on msg 2
+sender_thread: mq_send succeeded on msg 2
+receiver_thread: mq_receive succeeded on msg 3
+sender_thread: mq_send succeeded on msg 3
+receiver_thread: mq_receive succeeded on msg 4
+sender_thread: mq_send succeeded on msg 4
+receiver_thread: mq_receive succeeded on msg 5
+sender_thread: mq_send succeeded on msg 5
+receiver_thread: mq_receive succeeded on msg 6
+sender_thread: mq_send succeeded on msg 6
+receiver_thread: mq_receive succeeded on msg 7
+sender_thread: mq_send succeeded on msg 7
+receiver_thread: mq_receive succeeded on msg 8
+sender_thread: mq_send succeeded on msg 8
+receiver_thread: mq_receive succeeded on msg 9
+sender_thread: mq_send succeeded on msg 9
+sender_thread: returning nerrors=0
+mqueue_test: Killing receiver
+mqueue_test: Canceling receiver
+mqueue_test: receiver has already terminated
+mqueue_test: receiver mqd_t left open
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        6
+mxordblk    d57f8    cfff8
+uordblks     6280     9a88
+fordblks    dc1b8    d89b0
+
+user_main: timed message queue test
+timedmqueue_test: Starting sender
+timedmqueue_test: Waiting for sender to complete
+sender_thread: Starting
+sender_thread: mq_timedsend succeeded on msg 0
+sender_thread: mq_timedsend succeeded on msg 1
+sender_thread: mq_timedsend succeeded on msg 2
+sender_thread: mq_timedsend succeeded on msg 3
+sender_thread: mq_timedsend succeeded on msg 4
+sender_thread: mq_timedsend succeeded on msg 5
+sender_thread: mq_timedsend succeeded on msg 6
+sender_thread: mq_timedsend succeeded on msg 7
+sender_thread: mq_timedsend succeeded on msg 8
+sender_thread: mq_timedsend 9 timed out as expected
+sender_thread: returning nerrors=0
+timedmqueue_test: Starting receiver
+timedmqueue_test: Waiting for receiver to complete
+receiver_thread: Starting
+receiver_thread: mq_timedreceive succeed on msg 0
+receiver_thread: mq_timedreceive succeed on msg 1
+receiver_thread: mq_timedreceive succeed on msg 2
+receiver_thread: mq_timedreceive succeed on msg 3
+receiver_thread: mq_timedreceive succeed on msg 4
+receiver_thread: mq_timedreceive succeed on msg 5
+receiver_thread: mq_timedreceive succeed on msg 6
+receiver_thread: mq_timedreceive succeed on msg 7
+receiver_thread: mq_timedreceive succeed on msg 8
+receiver_thread: Receive 9 timed out as expected
+receiver_thread: returning nerrors=0
+timedmqueue_test: Test complete
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        5
+mxordblk    cfff8    d3ff8
+uordblks     9a88     7a80
+fordblks    d89b0    da9b8
+
+user_main: sigprocmask test
+sigprocmask_test: SUCCESS
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        5
+mxordblk    d3ff8    d3ff8
+uordblks     7a80     7a80
+fordblks    da9b8    da9b8
+
+user_main: signal handler test
+sighand_test: Initializing semaphore to 0
+sighand_test: Starting waiter task
+sighand_test: Started waiter_main pid=44
+waiter_main: Waiter started
+waiter_main: Unmasking signal 32
+waiter_main: Registering signal handler
+waiter_main: oact.sigaction=0 oact.sa_flags=0 oact.sa_mask=0000000000000000
+waiter_main: Waiting on semaphore
+sighand_test: Signaling pid=44 with signo=32 sigvalue=42
+waiter_main: sem_wait() successfully interrupted by signal
+waiter_main: done
+sighand_test: done
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        5
+mxordblk    d3ff8    d3ff8
+uordblks     7a80     7a80
+fordblks    da9b8    da9b8
+
+user_main: nested signal handler test
+signest_test: Starting signal waiter task at priority 151
+waiter_main: Waiter started
+signest_test: Started waiter_main pid=45
+waiter_main: Setting signal mask
+signest_test: Starting interfering task at priority 152
+waiter_main: Registering signal handler
+interfere_main: Waiting on semaphore
+waiter_main: Waiting on semaphore
+signest_test: Started interfere_main pid=46
+signest_test: Simple case:
+  Total signalled 1240  Odd=620 Even=620
+  Total handled   1240  Odd=620 Even=620
+  Total nested    0    Odd=0   Even=0  
+signest_test: With task locking
+  Total signalled 2480  Odd=1240 Even=1240
+  Total handled   2480  Odd=1240 Even=1240
+  Total nested    0    Odd=0   Even=0  
+signest_test: With intefering thread
+  Total signalled 3720  Odd=1860 Even=1860
+  Total handled   3720  Odd=1860 Even=1860
+  Total nested    0    Odd=0   Even=0  
+signest_test: done
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         5        6
+mxordblk    d3ff8    cfff8
+uordblks     7a80     9a88
+fordblks    da9b8    d89b0
+
+user_main: POSIX timer test
+timer_test: Initializing semaphore to 0
+timer_test: Unmasking signal 32
+timer_test: Registering signal handler
+timer_test: oact.sigaction=0x3008d19e oact.sa_flags=0 oact.sa_mask=2aaaaaaaaaaaaaaa
+timer_test: Creating timer
+timer_test: Starting timer
+timer_test: Waiting on semaphore
+timer_test: sem_wait() successfully interrupted by signal
+timer_test: g_nsigreceived=1
+timer_test: Waiting on semaphore
+timer_test: sem_wait() successfully interrupted by signal
+timer_test: g_nsigreceived=2
+timer_test: Waiting on semaphore
+timer_test: sem_wait() successfully interrupted by signal
+timer_test: g_nsigreceived=3
+timer_test: Deleting timer
+timer_test: done
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        6
+mxordblk    cfff8    cfff8
+uordblks     9a88     9a88
+fordblks    d89b0    d89b0
+
+user_main: round-robin scheduler test
+rr_test: Set thread priority to 150
+rr_test: Set thread policy to SCHED_RR
+rr_test: Starting first get_primes_thread
+         First get_primes_thread: 47
+rr_test: Starting second get_primes_thread
+         Second get_primes_thread: 49
+rr_test: Waiting for threads to complete -- this should take awhile
+         If RR scheduling is working, they should start and complete at
+         about the same time
+get_primes_thread id=1 started, looking for primes < 30000, doing 10 run(s)
+get_primes_thread id=2 started, looking for primes < 30000, doing 10 run(s)
+get_primes_thread id=1 finished, found 3246 primes, last one was 29989
+get_primes_thread id=2 finished, found 3246 primes, last one was 29989
+rr_test: Done
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6        6
+mxordblk    cfff8    d37f8
+uordblks     9a88     6a88
+fordblks    d89b0    db9b0
+
+user_main: barrier test
+barrier_test: Initializing barrier
+barrier_test: Thread 0 created
+barrier_func: Thread 0 started
+barrier_test: Thread 1 created
+barrier_func: Thread 1 started
+barrier_test: Thread 2 created
+barrier_func: Thread 2 started
+barrier_test: Thread 3 created
+barrier_func: Thread 3 started
+barrier_test: Thread 4 created
+barrier_func: Thread 4 started
+barrier_test: Thread 5 created
+barrier_func: Thread 5 started
+barrier_test: Thread 6 created
+barrier_func: Thread 6 started
+barrier_test: Thread 7 created
+barrier_func: Thread 7 started
+barrier_func: Thread 0 calling pthread_barrier_wait()
+barrier_func: Thread 1 calling pthread_barrier_wait()
+barrier_func: Thread 2 calling pthread_barrier_wait()
+barrier_func: Thread 3 calling pthread_barrier_wait()
+barrier_func: Thread 4 calling pthread_barrier_wait()
+barrier_func: Thread 5 calling pthread_barrier_wait()
+barrier_func: Thread 6 calling pthread_barrier_wait()
+barrier_func: Thread 7 calling pthread_barrier_wait()
+barrier_func: Thread 7, back with status=PTHREAD_BARRIER_SERIAL_THREAD (I AM SPECIAL)
+barrier_func: Thread 0, back with status=0 (I am not special)
+barrier_func: Thread 1, back with status=0 (I am not special)
+barrier_func: Thread 2, back with status=0 (I am not special)
+barrier_func: Thread 3, back with status=0 (I am not special)
+barrier_func: Thread 4, back with status=0 (I am not special)
+barrier_func: Thread 5, back with status=0 (I am not special)
+barrier_func: Thread 6, back with status=0 (I am not special)
+barrier_func: Thread 7 done
+barrier_func: Thread 0 done
+barrier_func: Thread 1 done
+barrier_test: Thread 0 completed with result=0
+barrier_test: Thread 1 completed with result=0
+barrier_func: Thread 2 done
+barrier_test: Thread 2 completed with result=0
+barrier_func: Thread 3 done
+barrier_test: Thread 3 completed with result=0
+barrier_func: Thread 4 done
+barrier_test: Thread 4 completed with result=0
+barrier_func: Thread 5 done
+barrier_test: Thread 5 completed with result=0
+barrier_func: Thread 6 done
+barrier_test: Thread 6 completed with result=0
+barrier_test: Thread 7 completed with result=0
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         6       12
+mxordblk    d37f8    c77f8
+uordblks     6a88     9ab8
+fordblks    db9b0    d8980
+
+user_main: scheduler lock test
+sched_lock: Starting lowpri_thread at 147
+sched_lock: Set lowpri_thread priority to 147
+sched_lock: Starting highpri_thread at 148
+sched_lock: Set highpri_thread priority to 148
+sched_lock: Waiting...
+sched_lock: PASSED No pre-emption occurred while scheduler was locked.
+sched_lock: Starting lowpri_thread at 147
+sched_lock: Set lowpri_thread priority to 147
+sched_lock: Starting highpri_thread at 148
+sched_lock: Set highpri_thread priority to 148
+sched_lock: Waiting...
+sched_lock: PASSED No pre-emption occurred while scheduler was locked.
+sched_lock: Finished
+
+End of test memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks        12        6
+mxordblk    c77f8    d37f8
+uordblks     9ab8     6a88
+fordblks    d8980    db9b0
+
+user_main: vfork() test
+vfork_test: Child 69 ran successfully
+
+Final memory usage:
+VARIABLE  BEFORE   AFTER
+======== ======== ========
+arena       e2438    e2438
+ordblks         4        5
+mxordblk    d7ff8    d3ff8
+uordblks     5ad8     7a80
+fordblks    dc960    da9b8
+user_main: Exiting
+ostest_main: Exiting with status 0
+nsh>
+
+================================================================================
+ 附 A：自动校验
+================================================================================
+  bringup 标志  : BCD / NuttShell (NSH) / nsh>  —— 全部命中
+  PMP           : pmpcfg0=0x80f08 三条 TOR 全生效
+  用户态实证     : mepc=0x3008ae06 ∈ 用户区, mcause=8 (ECALLU)
+  测试项        : 28 项
+      - Begin argument test
+      - getopt() test
+      - libc tests
+      - setvbuf test
+      - /dev/null test
+      - task_restart test
+      - waitpid test
+      - mutex test
+      - timed mutex test
+      - cancel test
+      - robust test
+      - semaphore test
+      - timed semaphore test
+      - condition variable test
+      - pthread_exit() test
+      - pthread_rwlock test
+      - pthread_rwlock_cancel test
+      - timed wait test
+      - message queue test
+      - timed message queue test
+      - sigprocmask test
+      - signal handler test
+      - nested signal handler test
+      - POSIX timer test
+      - round-robin scheduler test
+      - barrier test
+      - scheduler lock test
+      - vfork() test
+  显式 PASS     : 6 条
+  错误标记      : 0 条 (ERROR / FAIL / ASSERT / PANIC / EXCEPTION)
+  结局          : PASS - ostest_main: Exiting with status 0
+  运行后状态     : 系统存活，回到 nsh> 提示符
+
+================================================================================
+ 附 B：FLAT 与 PROTECTED 两种构建方式对照
+================================================================================
+  项目             FLAT (configs/nsh)          PROTECTED (configs/knsh)
+  ---------------  --------------------------  ------------------------------
+  构建模式          CONFIG_BUILD_FLAT=y         CONFIG_BUILD_PROTECTED=y (2-pass)
+  镜像数            1 (nuttx.bin 209,940 B)     2 (nuttx.bin 119,704 B + nuttx_user.bin 118,704 B)
+  内存保护          无(PMP 未用于隔离)          PMP 3 条 TOR: 内核 M-only / 用户 RWX / 兜底 deny
+  系统调用          直接函数调用                ECALLU 陷入 -> dispatch_syscall
+  NSH 特权级        M-mode                      U-mode
+  启动标志          'BC'                        'BCD'
+  ostest            31 项, status 0             28 项, status 0
+  证据 log          rcpu-bringup-ostest.log     本文件
+
+================================================================================
+ END OF EVIDENCE LOG
+================================================================================

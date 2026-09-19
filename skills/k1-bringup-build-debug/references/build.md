@@ -12,12 +12,12 @@
 ```bash
 cd $VELA_WORK
 
-# 全功能 nsh（含 ostest/hello/调试信息，验证用）
+# FLAT（交付基线：NSH + ostest/hello/mm/getprime + 调试信息）
 ./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/nsh \
   --cmake -c $GCC -j8
 
-# 最小体积 nsh-min（已裁剪 ostest/libm/调试字符串，真机首选用）
-./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/nsh-min \
+# PROTECTED（内核/用户隔离，2-pass，产出 nuttx + nuttx_user 两个镜像）
+./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/knsh \
   --cmake -c $GCC -j8
 ```
 
@@ -25,15 +25,19 @@ cd $VELA_WORK
 
 ## 产物位置与体积
 
-| 配置 | 构建目录 | nuttx.bin | 说明 |
+| 配置 | 构建目录 | 产物 | 说明 |
 |---|---|---|---|
-| nsh | `cmake_out/muse_pi_pro_rcpu_nsh/` | ≈210KB | 全功能，SRAM 堆余量仅约 25KB |
-| nsh-min | `cmake_out/muse_pi_pro_rcpu_nsh-min/` | ≈103KB | 裁剪版，堆余量约 139KB |
+| nsh（FLAT） | `cmake_out/muse_pi_pro_rcpu_nsh/` | `nuttx.bin` 209,940 B（text 208,740 B） | 全功能；DDR remap 2MB 窗口，余量充足 |
+| knsh（PROTECTED） | `cmake_out/muse_pi_pro_rcpu_knsh/` | `nuttx.bin` 119,704 B + `nuttx_user.bin` 118,704 B | 2-pass；用户镜像 LMA `0x30080000` |
 
 关键文件：
 
-- `nuttx` — ELF32，**entry `0x30000100`，DDR remap `0x30000000` 布局**（JTAG `load` 用这个；2026-08-22 实测）
-- `nuttx.bin` — 原始二进制（判体积 / 后续量产打包用）。当前 nsh ≈ 277KB（超 256KB 的 SRAM，必须 DDR remap 布局）
+- `nuttx` — ELF32，**entry `0x30000100`，DDR remap `0x30000000` 布局**（JTAG `load` 用这个）
+- `nuttx.bin` — 原始二进制（判体积 / 后续量产打包用）
+- **PROTECTED 专属**：`nuttx_user` / `nuttx_user.bin` — 用户镜像，**内核 ELF 不内嵌它**，烧录时必须在内核之后**再 `load` 一次**（见 `debug.md`）
+
+> 历史上曾有服务于 256KB SRAM 预算的 `configs/nsh-min`（约 103KB）。改为 DDR remap 布局后
+> 该前提已不成立且未做真机验证，**已删除**，不要再用。
 
 体积详细构成与进一步裁剪方向见知识库 `knowledge/porting/k1-rcpu-codesize-analysis.md`。
 

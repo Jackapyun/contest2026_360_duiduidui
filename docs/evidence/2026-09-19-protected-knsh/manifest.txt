@@ -1,0 +1,27 @@
+openvela RCPU PROTECTED (kernel build) 验证证据 — 固件出处
+date           : 2026-09-19 18:15:36 CST
+board          : SpaceMiT MUSE Pi Pro (K1) — RCPU Nuclei N308 (RV32, M+U)
+board config   : vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/knsh
+build          : ./build.sh .../configs/knsh --cmake -c <riscv-none-elf-gcc> -j8
+build mode     : 规范构建（build.sh 不使用 ccache launcher；等效评委全新 clone 的产物）
+nuttx          : wip/k1-rcpu-protected-build @ e27a03de8fc6968c80ea506e2f88c53a4a444b8c
+vendor/SpaceMiT: wip/rcpu-bringup-uart-irq-fix @ fe8530a6636ccd66faa58562a29523b8fc6bcb75
+gcc            : riscv-none-elf-gcc (GCC) 13.4.0
+--- 关键构建开关 ---
+CONFIG_BUILD_PROTECTED=y
+CONFIG_NUTTX_USERSPACE=0x30080000
+CONFIG_ARCH_USE_MPU=y
+CONFIG_LIB_SYSCALL=y
+CONFIG_MM_KERNEL_HEAP=y
+CONFIG_MM_KERNEL_HEAPSIZE=131072
+--- 产物 ---
+-rwxrwxr-x 1 jack jack 3931116  9月 19 18:13 work/vela-workspace/cmake_out/muse_pi_pro_rcpu_knsh/nuttx
+-rwxrwxr-x 1 jack jack  119704  9月 19 18:13 work/vela-workspace/cmake_out/muse_pi_pro_rcpu_knsh/nuttx.bin
+-rwxrwxr-x 1 jack jack 1770480  9月 19 18:13 work/vela-workspace/cmake_out/muse_pi_pro_rcpu_knsh/nuttx_user
+-rwxrwxr-x 1 jack jack  118704  9月 19 18:13 work/vela-workspace/cmake_out/muse_pi_pro_rcpu_knsh/nuttx_user.bin
+5155eb34fceff42986461e18ffc6eafa  work/vela-workspace/cmake_out/muse_pi_pro_rcpu_knsh/nuttx.bin
+92a7499b598bbfba385ae8d08b1f840f  work/vela-workspace/cmake_out/muse_pi_pro_rcpu_knsh/nuttx_user.bin
+kernel entry   :                0x30000100
+user  entry    :                0x30080038
+--- 设备内自报版本 ---
+e27a03de8fc-dirty Sep 19 2026 18:12:39

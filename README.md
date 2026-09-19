@@ -1,6 +1,6 @@
 # MUSE Pi Pro（SpacemiT K1）RCPU 实时核 openvela 适配
 
-> 2026 首届 openvela AI 硬件开发者大赛 · **新硬件适配赛道** · 队伍/专属仓：`contest2026_360_duiduidui`（fork 自官方模板仓 `open-vela/contest2026_000_openvela`）
+> 2026 首届 openvela AI 硬件开发者大赛 · **新硬件适配赛道** · 队伍/专属仓：`contest2026_360_duiduidui`
 
 ---
 
@@ -17,9 +17,11 @@ K1 是一颗「8×X60 大核 + RCPU 小核」的异构 SoC：大核跑 Linux（B
 - 系统 **tick + `ostest` 全量跑通**
 - 启用 **C 压缩扩展**（text 276KB → 209KB）
 - 内核启动时**自配置 RCPU 核心时钟**（不依赖大核遗留状态）
-- **PROTECTED 构建**：无 MMU 条件下用 **PMP 实现内核/用户态隔离**（3 条 TOR 全生效，用户态 `MPP=0`）
+- **PROTECTED 构建**：无 MMU 条件下用 **PMP 实现内核/用户态隔离**（3 条 TOR 全生效：内核 M-only / 用户 RWX / 兜底 deny），
+  NSH 实测运行在 **U-mode**，命令经 **ECALLU** 陷入内核（断点实测 `mepc=0x3008ae06` 落在用户镜像区、`mcause=8`）
 
-固件 text ≈ **210KB**（210,764 B；DDR remap 布局，2MB 预算内余量充足）。
+固件体积：FLAT `text = 208,740 B`（`nuttx.bin` 209,940 B）；PROTECTED 内核 119,704 B + 用户镜像 118,704 B。
+均为 **DDR remap 布局**（`entry 0x30000100`，2MB 预算内余量充足）。
 
 > 说明：本次交付范围 = **RCPU bringup + 系统验证**。曾探索的 RCPU↔AP 多核 rpmsg 传输**未达到端到端可用**
 > （大核侧始终未建立 `rpmsg-syslog` 通道），故**整体不纳入本次提交**，相关代码已从本仓移除；
@@ -43,7 +45,7 @@ contest2026_360_duiduidui/
 │   ├── apply.sh                    # 把适配源码安装进 openvela 工作区（幂等）
 │   └── k1-rcpu/
 │       ├── chips/k1-rcpu/          # 芯片层：启动/ECLIC/时钟/UART/PMP
-│       ├── boards/k1-rcpu/muse_pi_pro_rcpu/   # 板级：defconfig(×3)、board.h、链接脚本
+│       ├── boards/k1-rcpu/muse_pi_pro_rcpu/   # 板级：defconfig(×2: FLAT/PROTECTED)、board.h、链接脚本、kernel/
 │       ├── nuttx-patches/          # 需同步到公共 nuttx 仓的补丁（2 个）
 │       └── docs/adaptation-guide.md           # ★ 完整适配指南（构建/烧录/验证/原理）
 ├── skills/k1-bringup-build-debug/  # AI Skill：编译/烧录/串口/调试一键 runbook
@@ -84,7 +86,8 @@ vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu   -> contest2026_360_duiduidui/b
 cd contest2026_360_duiduidui/board/contest_board && ./apply.sh --patches && cd ../../..
 
 # ② 编译（在 openvela 工作区根目录）
-export CCACHE_DIR=$PWD/../.ccache
+#    不需要 ccache：本适配已移除 build.sh 里的 ccache compiler launcher，
+#    装不装 ccache 构建产物一致（体积可复现，见 4.5）。
 ./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/nsh \
     --cmake -c $PWD/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc -j8
 
@@ -95,7 +98,19 @@ riscv-none-elf-readelf -h cmake_out/muse_pi_pro_rcpu_nsh/nuttx | grep -iE "Entry
 > 补丁清单见 `board/contest_board/k1-rcpu/nuttx-patches/`（ECLIC mcause 高位屏蔽、build.sh 自定义工具链）。
 > 若你的工作区不是用 `repo init/sync` 拉的，再用 `./apply.sh` 手工同步源码。
 
-其它配置：`configs/knsh`（PROTECTED 内核/用户隔离）、`configs/nsh-min`（最小体积）。
+本适配提供**两套构建模式**，均已真机验证：
+
+| 配置 | 模式 | 产物 | 入口 | 真机验证 |
+|---|---|---|---|---|
+| `configs/nsh` | **FLAT**（交付基线） | `nuttx.bin` 209,940 B | `0x30000100` | `ostest` 31 项全过 |
+| `configs/knsh` | **PROTECTED**（进阶能力） | `nuttx` 119,704 B + `nuttx_user` 118,704 B | 内核 `0x30000100` / 用户 `0x30080000` | `ostest` 28 项全过 + PMP/ECALLU 取证 |
+
+- **FLAT** 是赛道要求的 L0 基线：功能最全（含 `ostest` / `mm` / `getprime` / `hello`），NSH 运行在 **M-mode**；
+- **PROTECTED**（`CONFIG_BUILD_PROTECTED=y` + `CONFIG_ARCH_USE_MPU=y`）为 **2-pass 构建**，用 PMP 三条 TOR 做内核/用户隔离，
+  NSH 运行在 **U-mode**，系统调用经 **ECALLU** 陷入内核。
+  ⚠️ **内核 ELF 不内嵌用户镜像，烧录时必须分别 `load` 两个文件**（见 4.3）。
+- 两套模式的 ostest 项数差异（PROTECTED 少 `FPU` / `spinlock` / `wdog` 三项）是上游设计使然：这三项在
+  `apps/testing/ostest/ostest_main.c` 中由 `#ifdef CONFIG_BUILD_FLAT` 包裹，PROTECTED 下本就不编译，**非失败**。
 
 ### 4.3 烧录与运行（J-Link + OpenOCD）
 
@@ -109,12 +124,24 @@ cd work/firmware/openocd/bin && ./openocd -c "bindto 0.0.0.0" -c "gdb port 1024"
 # 串口（RCPU r_uart0 = /dev/ttyACM0，115200 8N1）
 stty -F /dev/ttyACM0 115200 raw -echo && cat /dev/ttyACM0
 
-# 烧录并启动（★ 必须先写 DDR_REMAP_BASE=0x100000，否则取指跑飞/无输出）
+# 烧录并启动 —— FLAT（configs/nsh，单个镜像）
+# ★ 必须先写 DDR_REMAP_BASE=0x100000，否则取指跑飞/无输出
 riscv-none-elf-gdb -batch -nx \
   -ex "target remote localhost:1024" -ex "monitor reset halt" \
   -ex "set {unsigned int}0xC08800C0 = 0x100000" -ex "load" \
   -ex "monitor resume 0x30000100" -ex "detach" -ex "quit" \
   cmake_out/muse_pi_pro_rcpu_nsh/nuttx
+```
+
+**PROTECTED（`configs/knsh`）必须烧两个文件**——内核 ELF 不内嵌用户镜像：
+
+```bash
+riscv-none-elf-gdb -batch -nx \
+  -ex "target remote localhost:1024" -ex "monitor reset halt" \
+  -ex "set {unsigned int}0xC08800C0 = 0x100000" \
+  -ex "load cmake_out/muse_pi_pro_rcpu_knsh/nuttx" \
+  -ex "load cmake_out/muse_pi_pro_rcpu_knsh/nuttx_user" \
+  -ex "monitor resume 0x30000100" -ex "detach" -ex "quit"
 ```
 
 ### 4.4 复现验收（串口出现 `nsh>` 后）
@@ -128,12 +155,27 @@ ostest          → 全部子测试通过，Exiting with status 0
 启动日志关键行：
 
 ```text
-BC
+BC            ← FLAT
+BCD           ← PROTECTED（多一个 D）
 NuttShell (NSH)
 nsh>
 ```
 
 更详细的原理、排障、寄存器级说明见 **`board/contest_board/k1-rcpu/docs/adaptation-guide.md`**。
+
+### 4.5 真机验证证据（2026-09-19，两套模式各一份）
+
+完整的 GDB 烧录记录、串口原始日志、PMP/特权级取证与自动校验清单：
+
+| 模式 | 证据目录 | 关键结论 |
+|---|---|---|
+| FLAT | `docs/evidence/2026-09-19-flat-nsh-ostest/` | `BC`→`nsh>`；`ostest` 31 项全过、`status 0` |
+| PROTECTED | `docs/evidence/2026-09-19-protected-knsh/` | `BCD`→`nsh>`；`pmpcfg0=0x80f08` 三条 TOR；`mepc=0x3008ae06`+`mcause=8` 证明 U-mode；`ostest` 28 项全过、`status 0` |
+
+> 每份目录内含：合并版主 log、`manifest.txt`（源码 commit / 镜像 md5 / 入口）、
+> `gdb-flash-and-load.log`（烧录 transcript）、`rcpu-serial-console.log`（原始串口）与 `-clean.log`（可读版）；
+> PROTECTED 另有 `gdb-pmp-forensics.log`（PMP 寄存器）与 `gdb-syscall-proof.log`（ECALLU 实证）。
+> 注：镜像内嵌编译时刻，**体积可复现、md5 不可跨次复现**。
 
 ---
 

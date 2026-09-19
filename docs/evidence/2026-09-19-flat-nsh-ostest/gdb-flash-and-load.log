@@ -1,0 +1,70 @@
+====================================================================
+ openvela on SpacemiT K1 RCPU (Nuclei N308) - JTAG flash & boot
+ tool : SpaceMiT OpenOCD + SEGGER J-Link + riscv-none-elf-gdb
+ date : 2026-09-19 17:44:06 CST
+ host : Linux 6.8.0-138-generic x86_64
+ image: cmake_out/muse_pi_pro_rcpu_nsh/nuttx  (ELF32 RISC-V, entry 0x30000100)
+ elf md5: 099a92108df2a37314235d9e17bfbf4a
+ bin md5: fafeaa002191deef44207a2d967abe7d   (209940 bytes)
+ cmd  : target remote localhost:1024 ; monitor reset halt ;
+        set {u32}0xC08800C0 = 0x100000  (DDR_REMAP_BASE) ; load ;
+        monitor resume 0x30000100
+====================================================================
+0x30012854 in up_idle () at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_idle.c:75
+75	}
+JTAG tap: post.unknown tap/device found: 0x28501c0d (mfg: 0x606 (Shenzhen Chixingzhe Technology Co Ltd), part: 0x8501, ver: 0x2)
+JTAG tap: pre.unknown enabled
+JTAG tap: k1.cpu enabled
+DDR_REMAP_BASE before = 0x00100000
+DDR_REMAP_BASE after  = 0x00100000
+Loading section .note.gnu.build-id, size 0x24 lma 0x30000000
+Loading section .text, size 0x26b8e lma 0x30000100
+Loading section .rodata, size 0xc278 lma 0x30026c90
+Loading section .srodata.g_nullstring, size 0x9 lma 0x30032f08
+Loading section .srodata.cst8, size 0x70 lma 0x30032f18
+Loading section .srodata.g_erasetoeol, size 0x3 lma 0x30032f88
+Loading section .srodata.g_failure, size 0x2 lma 0x30032f8c
+Loading section .srodata.g_success, size 0x2 lma 0x30032f90
+Loading section .srodata.g_lastpid, size 0x2 lma 0x30032f94
+Loading section .srodata.g_exitstatus, size 0x2 lma 0x30032f98
+Loading section .srodata.g_redirect_err3, size 0x5 lma 0x30032f9c
+Loading section .srodata.g_redirect_err2, size 0x4 lma 0x30032fa4
+Loading section .srodata.g_redirect_err1, size 0x3 lma 0x30032fa8
+Loading section .srodata.g_redirect_in1, size 0x2 lma 0x30032fac
+Loading section .srodata.g_redirect_out2, size 0x3 lma 0x30032fb0
+Loading section .srodata.g_redirect_out1, size 0x2 lma 0x30032fb4
+Loading section .srodata.g_arg_separator, size 0x3 lma 0x30032fb8
+Loading section .srodata.g_line_separator, size 0x6 lma 0x30032fbc
+Loading section .srodata.g_quote_separator, size 0x4 lma 0x30032fc4
+Loading section .srodata.g_token_separator, size 0x4 lma 0x30032fc8
+Loading section .srodata.cst4, size 0x1c lma 0x30032fcc
+Loading section .srodata.g_flags, size 0x7 lma 0x30032fe8
+Loading section .srodata.g_state, size 0x7 lma 0x30032ff0
+Loading section .srodata.g_groupid, size 0xf lma 0x30032ff8
+Loading section .srodata.g_type, size 0x6 lma 0x30033008
+Loading section .srodata.g_home, size 0x2 lma 0x30033010
+Loading section .srodata.g_oldpwd, size 0x7 lma 0x30033014
+Loading section .srodata.g_pwd, size 0x4 lma 0x3003301c
+Loading section .srodata.g_unknown, size 0x8 lma 0x30033020
+Loading section .srodata.g_syslog_channel, size 0x4 lma 0x30033028
+Loading section .srodata.g_default_channel, size 0x8 lma 0x3003302c
+Loading section .srodata.labels.0, size 0x5 lma 0x30033034
+Loading section .srodata.g_release, size 0x6 lma 0x3003303c
+Loading section .srodata.g_arch, size 0x7 lma 0x30033044
+Loading section .srodata.g_builtin_count, size 0x4 lma 0x3003304c
+Loading section .srodata.arg4, size 0x5 lma 0x30033050
+Loading section .srodata.arg3, size 0x5 lma 0x30033058
+Loading section .srodata.arg2, size 0x5 lma 0x30033060
+Loading section .srodata.arg1, size 0x5 lma 0x30033068
+Loading section .srodata.g_varname, size 0x8 lma 0x30033070
+Loading section .data, size 0x38c lma 0x30033078
+Loading section .sdata.g_syslog_mask, size 0x1 lma 0x30033404
+Loading section .sdata.g_readytorun, size 0x8 lma 0x30033408
+Loading section .sdata.g_idle_topstack, size 0x4 lma 0x30033410
+Start address 0x30000100, load size 209661
+Transfer rate: 112 KB/sec, 3743 bytes/write.
+pc (/32): 0x30000100
+background polling: on
+TAP: k1.cpu (enabled)
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===

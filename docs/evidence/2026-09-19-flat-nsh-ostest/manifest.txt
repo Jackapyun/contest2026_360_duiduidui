@@ -1,0 +1,22 @@
+openvela RCPU bringup + OSTEST evidence — firmware provenance
+date          : 2026-09-19 17:46:09 CST
+board         : SpaceMiT MUSE Pi Pro (K1) — RCPU = Nuclei N308 (RV32, M-Mode)
+board config  : vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/nsh
+build cmd     : ./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/nsh --cmake -c <riscv-none-elf-gcc> -j8
+nuttx         : wip/k1-rcpu-protected-build @ e27a03de8fc6968c80ea506e2f88c53a4a444b8c
+vendor/SpaceMiT: wip/rcpu-bringup-uart-irq-fix @ fe8530a6636ccd66faa58562a29523b8fc6bcb75
+gcc           : riscv-none-elf-gcc (GCC) 13.4.0
+--- firmware ---
+-rwxrwxr-x 1 jack jack 4342600  9月 19 17:43 work/vela-workspace/cmake_out/muse_pi_pro_rcpu_nsh/nuttx
+-rwxrwxr-x 1 jack jack  209940  9月 19 17:43 work/vela-workspace/cmake_out/muse_pi_pro_rcpu_nsh/nuttx.bin
+099a92108df2a37314235d9e17bfbf4a  work/vela-workspace/cmake_out/muse_pi_pro_rcpu_nsh/nuttx
+fafeaa002191deef44207a2d967abe7d  work/vela-workspace/cmake_out/muse_pi_pro_rcpu_nsh/nuttx.bin
+  Class:                             ELF32
+  Machine:                           RISC-V
+  Entry point address:               0x30000100
+   text	   data	    bss	    dec	    hex	filename
+ 208740	    921	  11744	 221405	  360dd	work/vela-workspace/cmake_out/muse_pi_pro_rcpu_nsh/nuttx
+--- built-in timestamp banner ---
+e27a03de8fc-dirty Sep 19 2026 17:43:30
+--- host ---
+Linux jack-ThinkPad-E480 6.8.0-138-generic #138~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:43:15 UTC  x86_64 x86_64 x86_64 GNU/Linux

@@ -43,9 +43,8 @@ board/contest_board/
     │   ├── hardware/*.h        # 寄存器定义（memorymap/ccu/uart/eclic/timer）
     │   └── include/            # chip.h / irq.h
     ├── boards/k1-rcpu/muse_pi_pro_rcpu/
-    │   ├── configs/nsh/        # 主配置（NSH + ostest）
+    │   ├── configs/nsh/        # 主配置（NSH + ostest，FLAT）
     │   ├── configs/knsh/       # PROTECTED 配置（内核/用户隔离 + 2-pass）
-    │   ├── configs/nsh-min/    # 最小体积配置
     │   ├── src/k1r_boardinit.c # 板级初始化（串口由 nx_start 完成）
     │   ├── scripts/*.ld        # DDR remap 链接脚本（LMA 0x30000000）
     │   └── kernel/k1r_userspace.c
@@ -70,7 +69,7 @@ cd contest2026_360_duiduidui/board/contest_board && ./apply.sh --patches
 
 # 2) 编译（在 openvela 工作区根目录）
 cd ../../..
-export CCACHE_DIR=$PWD/../.ccache
+# 不需要 ccache（build.sh 已移除 ccache compiler launcher；装不装产物一致）
 ./build.sh vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/nsh \
     --cmake -c $PWD/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc -j8
 

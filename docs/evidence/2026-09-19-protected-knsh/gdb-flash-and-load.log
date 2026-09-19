@@ -1,0 +1,42 @@
+====================================================================
+ openvela PROTECTED (kernel build / 2-pass) on K1 RCPU — JTAG flash
+ board config : vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu/configs/knsh
+ build mode   : 规范构建（./build.sh，无 ccache launcher；等效评委全新 clone）
+ date   : 2026-09-19 18:13:41 CST
+ kernel : nuttx      entry 0x30000100  119704 B bin  md5 5155eb34fceff42986461e18ffc6eafa
+ user   : nuttx_user LMA   0x30080000  118704 B bin  md5 92a7499b598bbfba385ae8d08b1f840f
+ note   : 2-pass 构建，内核 ELF 不内嵌用户镜像 => 必须分别 load 两个 blob
+====================================================================
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x3000d890 in ?? ()
+JTAG tap: post.unknown tap/device found: 0x28501c0d (mfg: 0x606 (Shenzhen Chixingzhe Technology Co Ltd), part: 0x8501, ver: 0x2)
+JTAG tap: pre.unknown enabled
+JTAG tap: k1.cpu enabled
+DDR_REMAP_BASE = 0x00100000
+Loading section .note.gnu.build-id, size 0x24 lma 0x30000000
+Loading section .text, size 0x19e2c lma 0x30000100
+Loading section .rodata, size 0x3064 lma 0x30019f30
+Loading section .srodata.g_nullstring, size 0x7 lma 0x3001cf94
+Loading section .srodata.cst8, size 0x48 lma 0x3001cfa0
+Loading section .srodata.g_syslog_channel, size 0x4 lma 0x3001cfe8
+Loading section .srodata.g_default_channel, size 0x8 lma 0x3001cfec
+Loading section .srodata.labels.0, size 0x5 lma 0x3001cff4
+Loading section .srodata.g_release, size 0x6 lma 0x3001cffc
+Loading section .srodata.g_arch, size 0x7 lma 0x3001d004
+Loading section .data, size 0x37c lma 0x3001d00c
+Loading section .sdata.g_syslog_mask, size 0x1 lma 0x3001d388
+Loading section .sdata.g_readytorun, size 0x8 lma 0x3001d38c
+Loading section .sdata.g_idle_topstack, size 0x4 lma 0x3001d394
+Start address 0x30000100, load size 119466
+Transfer rate: 92 KB/sec, 5973 bytes/write.
+Loading section .userspace, size 0x38 lma 0x30080000
+Loading section .text, size 0x1cd3c lma 0x30080038
+Loading section .data, size 0x23c lma 0x3009cd74
+Start address 0x30080038, load size 118704
+Transfer rate: 99 KB/sec, 11870 bytes/write.
+0x30080000:	0x30087210	0x30080038	0x3009cd74	0x3009cd74
+background polling: on
+TAP: k1.cpu (enabled)
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===

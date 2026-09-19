@@ -1,0 +1,31 @@
+====================================================================
+ PROTECTED 取证 #2：系统调用路径实证（ECALLU 门）
+ 方法 : 内核 dispatch_syscall 下断点 → 串口敲 'uname -a' → 读 mepc/mcause
+ 判据 : 用户 blob 链接于 0x30080000；mepc ∈ [0x30080000,0x30180000)
+        且 mcause low12 == 8（ECALL from U-mode）→ 命令确由用户态发起
+ date : 2026-09-19 18:13:59 CST
+====================================================================
+0x3000d890 in up_idle () at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_idle.c:75
+75	}
+Breakpoint 1 at 0x30001830: file /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_swint.c, line 87.
+[gdb] 断点已设 @ dispatch_syscall，继续运行等待用户态 syscall...
+
+Breakpoint 1, dispatch_syscall (nbr=65, parm1=1, parm2=805964447, parm3=1, parm4=1, parm5=805964447, parm6=83, context=0x300a0904) at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_swint.c:87
+87	  struct tcb_s *rtcb         = this_task();
+
+>>> BREAKPOINT HIT @ dispatch_syscall
+mepc  (user return PC) = 0x3008ae06
+mcause                  = 0x00000008  (low12=0x8, 8=ECALLU)
+用户镜像区间            = [0x30080000, 0x30180000)
+判定: mepc 落在 用户镜像区间
+
+--- mepc 处指令（应为用户态 ecall）---
+   0x3008ae06:	ecall
+   0x3008ae0a:	nop
+--- syscall 参数（a0=syscall#）---
+a0             0x41	65
+a1             0x1	1
+a2             0x300a0a9f	805964447
+a3             0x1	1
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===

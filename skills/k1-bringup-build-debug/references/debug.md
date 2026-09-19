@@ -93,7 +93,7 @@ cd $OCD_DIR            # ⚠️ 必须在 bin 目录下运行（脚本用相对�
 ## GDB 加载固件
 
 ```bash
-cd $VELA_WORK/cmake_out/muse_pi_pro_rcpu_nsh   # 或 muse_pi_pro_rcpu_nsh-min
+cd $VELA_WORK/cmake_out/muse_pi_pro_rcpu_nsh   # FLAT；PROTECTED 用 muse_pi_pro_rcpu_knsh（需再 load nuttx_user）
 $GDB nuttx
 ```
 

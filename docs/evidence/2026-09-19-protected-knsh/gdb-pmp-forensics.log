@@ -1,0 +1,37 @@
+====================================================================
+ PROTECTED 取证 #1：PMP 分区 + 特权级（GDB attach，不 reset）
+ date: 2026-09-19 18:13:55 CST
+ 判读：N308 的 PMP A 字段在 bits[4:3]（非标准 bits[3:2]）
+       A=0x08 => 1<<3 = TOR；pmpaddr<<2 = 区间上界（TOR 下界 = 前一条上界）
+====================================================================
+0x3000d890 in up_idle () at /mnt/data/openvela_contest/document/work/vela-workspace/nuttx/arch/risc-v/src/common/riscv_idle.c:75
+75	}
+--- halt 时 PC ---
+PC = 0x3000d890
+up_idle + 4 in section .text
+
+--- PMP CSR ---
+pmpcfg0        0x80f08	528136
+pmpcfg1        0x0	0
+pmpcfg2        0x0	0
+pmpcfg3        0x0	0
+pmpaddr0       0xc020000	201457664
+pmpaddr1       0xc060000	201719808
+pmpaddr2       0x3ffffc00	1073740800
+pmpaddr3       0x0	0
+pmpaddr4       0x0	0
+pmpaddr5       0x0	0
+pmpaddr6       0x0	0
+pmpaddr7       0x0	0
+
+--- PMP 分区解码 (TOR: [prev<<2, this<<2)) ---
+entry0 cfg=0x08 A=1 : [0x00000000, 0x30080000)  <- 内核, M-only(无R/W/X)
+entry1 cfg=0x0f A=1 : [0x30080000, 0x30180000)  <- 用户, RWX
+entry2 cfg=0x08 A=1 : [0x30180000, top)      <- 兜底 deny(M 态不受限)
+
+--- mstatus ---
+mstatus        0x80006088	SD:1 VM:00 MXR:0 PUM:0 MPRV:0 XS:0 FS:3 MPP:0 HPP:0 SPP:0 MPIE:1 HPIE:0 SPIE:0 UPIE:0 MIE:1 HIE:0 SIE:0 UIE:0
+mstatus.MPP = 0x0 (0=U, 3=M)
+(halt 时 CPU 在内核 idle 循环, MPP 仅作旁证; 决定性证据见取证 #2)
+[Inferior 1 (Remote target) detached]
+=== gdb exit=0 ===

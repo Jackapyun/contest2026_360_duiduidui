@@ -48,13 +48,16 @@ board/contest_board/
 
 编译与烧录步骤见 **`k1-rcpu/docs/adaptation-guide.md`** 与仓库根 `README.md`。
 
-## 三个可用配置
+## 两个可用配置
 
 | 配置 | 用途 |
 |---|---|
-| `configs/nsh` | 主配置：NSH 交互 + `ostest` + PXA UART + 内核自配置时钟（**不含 rpmsg**） |
-| `configs/knsh` | PROTECTED：内核/用户态隔离（PMP + 2-pass + ECALLU 系统调用门） |
-| `configs/nsh-min` | 最小体积（≈103KB，SRAM 布局场景） |
+| `configs/nsh` | 主配置（交付基线）：NSH 交互 + `ostest` + PXA UART + 内核自配置时钟（**不含 rpmsg**） |
+| `configs/knsh` | PROTECTED：内核/用户态隔离（PMP + 2-pass + ECALLU 系统调用门）；**烧录需分别 load 内核与用户两个 ELF** |
+
+> 早期曾有一个服务于 256KB SRAM 预算的 `configs/nsh-min` 最小体积配置；
+> 在改用 **DDR remap 布局**（`entry 0x30000100`、2MB 窗口）后其前提已不成立，
+> 且未纳入真机验证，故已删除，避免与主流程的烧录方式不一致。
 
 > 本队**未使用**应用/快应用形态，模板自带的 `app/hello_app`、`quickapp/hello_quickapp`
 > 以及 `board/contest_board/{Kconfig,CMakeLists.txt,src/,configs/}` 占位文件已按官方说明
