@@ -1,0 +1,66 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_CHIP_CUSTOM
+
+comment "SpaceMiT RCPU (N308) Configuration Options"
+
+choice
+	prompt "SpaceMiT RCPU Chip Selection"
+	default ARCH_CHIP_K1_RCPU
+
+config ARCH_CHIP_K1_RCPU
+	bool "SpacemiT K1 RCPU (Nuclei N308, RV32)"
+	select ARCH_RV32
+	select ARCH_RV_ISA_M
+	select ARCH_RV_ISA_A
+	select ARCH_RV_ISA_C
+	select ARCH_RV_ISA_ZICSR_ZIFENCEI
+	select ARCH_HAVE_FPU
+	select ARCH_HAVE_DPFPU
+	select ARCH_HAVE_MPU
+	select ONESHOT
+	select ONESHOT_COUNT
+	select ALARM_ARCH
+	---help---
+		SpacemiT K1 实时协处理器：Nuclei N308（RV32IMAFDCPB、3 级流水、
+		无 MMU、16KB D-Cache、8 条 PMP、ECLIC 中断、64 位私有 TIMER，
+		主频 245MHz）。固件由 AP 侧 remoteproc 加载（官方 esOS 入口
+		0x30300114）或 JTAG 加载；本移植目标为 32 位 M-Mode 单核 FLAT。
+		全部代码在本 vendor 目录管理，不新建 arch/risc-v/src 子目录。
+
+endchoice
+
+if ARCH_CHIP_K1_RCPU
+
+config K1R_UART
+	bool "K1 RCPU SHUB_UART 串口驱动"
+	default y
+	---help---
+		SpaceMiT K1 RCPU SHUB_UART（PXA/Intel XScale 变体）专用串口
+		驱动。PXA 与标准 ns16550 的语义不同：RDA 中断硬件上依赖
+		IER.RTOIE、RTO（接收超时）需独立处理、需设 FCR.BUS32、
+		TX 中断为 FIFO 半空触发。标准 ns16550 驱动不适配（GDB 实测
+		仅使能 RAVIE 时 RX 中断不上报）。
+
+if K1R_UART
+
+config K1R_UART0_BAUD
+	int "UART0 波特率"
+	default 115200
+
+config K1R_UART0_CLOCK
+	int "UART0 输入时钟 (Hz)"
+	default 24000000
+
+config K1R_UART0_SERIAL_CONSOLE
+	bool "UART0 作为串口控制台"
+	default y
+
+endif # K1R_UART
+
+endif # ARCH_CHIP_K1_RCPU
+
+endif
