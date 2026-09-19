@@ -1,16 +1,28 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <manifest>
   <!--
-    Team repo manifest. Includes the full openvela base project set
-    (openvela.xml in this same repo) and adds this team repo as a self-ref
-    project, exposing its work-form subdirectories to openvela working-tree
-    locations via <linkfile>. remote/default come from the included openvela.xml.
+    本队（队伍 360 / duiduidui）专属仓 manifest：
+    open-vela/contest2026_360_duiduidui（赛事方创建，分支 dev-ai-contest-2026）。
+    本仓保留 openvela 全量工程清单（openvela.xml 与本文件同仓），并通过 <linkfile>
+    把本队的工作子目录暴露到 openvela 工作树的对应位置，生产仓库零改动。
+
+    ★ 本队补充（新硬件适配赛道 / SpaceMiT K1 RCPU）：
+    基础清单 openvela.xml 中不含 vendor/SpaceMiT（该 vendor 仓面向 K1 / MUSE Pi Pro，
+    属待适配平台），因此这里显式声明该 project，并用 <linkfile> 把本仓
+    board/contest_board/k1-rcpu 下的适配代码软链到 vendor/SpaceMiT 对应目录，
+    即官方约定的「生产仓库零改动」映射方式：repo sync 完成后可直接编译，无需手工 copy。
+
+    编译命令（在 openvela 工作区根目录执行）见本仓 README.md 第四节与
+    board/contest_board/k1-rcpu/docs/adaptation-guide.md 第三节。
   -->
   <include name="openvela.xml"/>
 
+  <!-- 目标 vendor 仓（K1 / MUSE Pi Pro；分支取自 openvela.xml 的 default revision） -->
+  <project path="vendor/SpaceMiT" name="vendor_SpaceMiT"/>
+
   <project path="contest2026_360_duiduidui" name="contest2026_360_duiduidui">
-    <linkfile src="app/hello_app" dest="packages/demos/contest2026_360_hello_app"/>
-    <linkfile src="quickapp/hello_quickapp" dest="packages/apps/contest2026_360_hello_quickapp"/>
-    <linkfile src="board/contest_board" dest="vendor/openvela/boards/contest2026_360_board"/>
+    <!-- RCPU(N308) 适配：芯片层 + 板级 -->
+    <linkfile src="board/contest_board/k1-rcpu/chips/k1-rcpu" dest="vendor/SpaceMiT/chips/k1-rcpu"/>
+    <linkfile src="board/contest_board/k1-rcpu/boards/k1-rcpu/muse_pi_pro_rcpu" dest="vendor/SpaceMiT/boards/k1-rcpu/muse_pi_pro_rcpu"/>
   </project>
 </manifest>

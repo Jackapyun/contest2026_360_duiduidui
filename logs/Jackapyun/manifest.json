@@ -1,0 +1,261 @@
+{
+  "team_id": "contest2026-000",
+  "github_login": "Jackapyun",
+  "tool": "dsh",
+  "schema_version": "1.0",
+  "exported_at": "2026-09-18T14:52:31.739269+00:00",
+  "sessions": [
+    {
+      "session_id": "fb6673b2-2b0c-4a25-a218-f27dd318f37f",
+      "date": "2026-08-13",
+      "events": 114,
+      "bytes": 329552,
+      "truncated_outputs": 1,
+      "redactions": 1,
+      "file": "Jackapyun/2026-08-13/dsh__fb6673b2-2b0c-4a25-a218-f27dd318f37f.jsonl"
+    },
+    {
+      "session_id": "session-4aa47456-98c8-4fa2-9544-7d93861ac8c1",
+      "date": "2026-08-13",
+      "events": 5,
+      "bytes": 17564,
+      "truncated_outputs": 0,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-13/dsh__session-4aa47456-98c8-4fa2-9544-7d93861ac8c1.jsonl"
+    },
+    {
+      "session_id": "session-4dd386a7-ca94-4a95-85c9-db25782669cc",
+      "date": "2026-08-13",
+      "events": 119,
+      "bytes": 335740,
+      "truncated_outputs": 4,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-13/dsh__session-4dd386a7-ca94-4a95-85c9-db25782669cc.jsonl"
+    },
+    {
+      "session_id": "session-93083b3d-7424-4bbe-b98f-137865d3fa9c",
+      "date": "2026-08-13",
+      "events": 203,
+      "bytes": 683467,
+      "truncated_outputs": 4,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-13/dsh__session-93083b3d-7424-4bbe-b98f-137865d3fa9c.jsonl"
+    },
+    {
+      "session_id": "session-ab3061d2-ae4f-40c5-8f6c-a945caacaf45",
+      "date": "2026-08-13",
+      "events": 326,
+      "bytes": 900810,
+      "truncated_outputs": 4,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-13/dsh__session-ab3061d2-ae4f-40c5-8f6c-a945caacaf45.jsonl"
+    },
+    {
+      "session_id": "session-c4bf0fb9-c9fc-40f4-bc74-37ef63930dd7",
+      "date": "2026-08-13",
+      "events": 3214,
+      "bytes": 7129875,
+      "truncated_outputs": 7,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-13/dsh__session-c4bf0fb9-c9fc-40f4-bc74-37ef63930dd7.jsonl"
+    },
+    {
+      "session_id": "session-2345952d-be5a-450a-b4be-6fa623067963",
+      "date": "2026-08-14",
+      "events": 37,
+      "bytes": 135127,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-14/dsh__session-2345952d-be5a-450a-b4be-6fa623067963.jsonl"
+    },
+    {
+      "session_id": "session-5d9aee9f-567f-4879-bac2-40c79f6d8c84",
+      "date": "2026-08-15",
+      "events": 1051,
+      "bytes": 2230904,
+      "truncated_outputs": 5,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-15/dsh__session-5d9aee9f-567f-4879-bac2-40c79f6d8c84.jsonl"
+    },
+    {
+      "session_id": "session-dd3b43c2-46d2-4b1d-9fef-a98bb903e2c3",
+      "date": "2026-08-15",
+      "events": 573,
+      "bytes": 1210899,
+      "truncated_outputs": 5,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-15/dsh__session-dd3b43c2-46d2-4b1d-9fef-a98bb903e2c3.jsonl"
+    },
+    {
+      "session_id": "session-52510fd1-542f-46b1-bdaf-c3de1d57dc8d",
+      "date": "2026-08-16",
+      "events": 103,
+      "bytes": 165864,
+      "truncated_outputs": 0,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-16/dsh__session-52510fd1-542f-46b1-bdaf-c3de1d57dc8d.jsonl"
+    },
+    {
+      "session_id": "1b423617-2dcf-4a2c-9916-03de0bf037cd",
+      "date": "2026-08-21",
+      "events": 127,
+      "bytes": 361845,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__1b423617-2dcf-4a2c-9916-03de0bf037cd.jsonl"
+    },
+    {
+      "session_id": "27a6f91d-6246-437c-9ff9-efa1fbe6fc03",
+      "date": "2026-08-21",
+      "events": 108,
+      "bytes": 336248,
+      "truncated_outputs": 1,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__27a6f91d-6246-437c-9ff9-efa1fbe6fc03.jsonl"
+    },
+    {
+      "session_id": "4ac2b269-1430-4e17-a57f-76571410a363",
+      "date": "2026-08-21",
+      "events": 153,
+      "bytes": 298656,
+      "truncated_outputs": 0,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__4ac2b269-1430-4e17-a57f-76571410a363.jsonl"
+    },
+    {
+      "session_id": "6939d4d2-7bd7-440b-ac97-6d6fe03f18aa",
+      "date": "2026-08-21",
+      "events": 150,
+      "bytes": 360149,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__6939d4d2-7bd7-440b-ac97-6d6fe03f18aa.jsonl"
+    },
+    {
+      "session_id": "88b6e923-b638-4cd7-8556-9dcde4f4b8ab",
+      "date": "2026-08-21",
+      "events": 100,
+      "bytes": 262534,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__88b6e923-b638-4cd7-8556-9dcde4f4b8ab.jsonl"
+    },
+    {
+      "session_id": "bb5cdea5-9f17-40df-8aba-98b51ee5a08e",
+      "date": "2026-08-21",
+      "events": 100,
+      "bytes": 255588,
+      "truncated_outputs": 1,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__bb5cdea5-9f17-40df-8aba-98b51ee5a08e.jsonl"
+    },
+    {
+      "session_id": "c7c2efd5-a957-4693-9387-6a3da763f9f5",
+      "date": "2026-08-21",
+      "events": 49,
+      "bytes": 197701,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__c7c2efd5-a957-4693-9387-6a3da763f9f5.jsonl"
+    },
+    {
+      "session_id": "session-1de3f814-0899-4b73-8ccf-8c88c20475d0",
+      "date": "2026-08-21",
+      "events": 195,
+      "bytes": 765963,
+      "truncated_outputs": 1,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__session-1de3f814-0899-4b73-8ccf-8c88c20475d0.jsonl"
+    },
+    {
+      "session_id": "session-25296d00-1abe-4d66-a219-de7139dcccfb",
+      "date": "2026-08-21",
+      "events": 1334,
+      "bytes": 3524324,
+      "truncated_outputs": 3,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__session-25296d00-1abe-4d66-a219-de7139dcccfb.jsonl"
+    },
+    {
+      "session_id": "session-4b6c0cbd-78e9-470a-9223-55a648fcf9e9",
+      "date": "2026-08-21",
+      "events": 127,
+      "bytes": 302240,
+      "truncated_outputs": 3,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__session-4b6c0cbd-78e9-470a-9223-55a648fcf9e9.jsonl"
+    },
+    {
+      "session_id": "session-9dd9273b-e3ac-49da-9d6e-d4a7738bc112",
+      "date": "2026-08-21",
+      "events": 903,
+      "bytes": 2356959,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-21/dsh__session-9dd9273b-e3ac-49da-9d6e-d4a7738bc112.jsonl"
+    },
+    {
+      "session_id": "023d08d6-09e1-468a-9b6b-663039b63939",
+      "date": "2026-08-22",
+      "events": 161,
+      "bytes": 405567,
+      "truncated_outputs": 1,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-22/dsh__023d08d6-09e1-468a-9b6b-663039b63939.jsonl"
+    },
+    {
+      "session_id": "207ccebc-d89b-42ca-ae91-87fb9f7ae347",
+      "date": "2026-08-22",
+      "events": 192,
+      "bytes": 433566,
+      "truncated_outputs": 0,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-22/dsh__207ccebc-d89b-42ca-ae91-87fb9f7ae347.jsonl"
+    },
+    {
+      "session_id": "99b23724-1429-4abb-a176-d47702196130",
+      "date": "2026-08-22",
+      "events": 147,
+      "bytes": 391546,
+      "truncated_outputs": 2,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-22/dsh__99b23724-1429-4abb-a176-d47702196130.jsonl"
+    },
+    {
+      "session_id": "session-2bcae27f-3693-458b-949a-aeaf44611aa0",
+      "date": "2026-08-22",
+      "events": 1135,
+      "bytes": 3533436,
+      "truncated_outputs": 5,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-22/dsh__session-2bcae27f-3693-458b-949a-aeaf44611aa0.jsonl"
+    },
+    {
+      "session_id": "session-5cdebfa9-db66-4252-b3fc-4c9f1c0f567b",
+      "date": "2026-08-22",
+      "events": 1495,
+      "bytes": 3953954,
+      "truncated_outputs": 4,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-22/dsh__session-5cdebfa9-db66-4252-b3fc-4c9f1c0f567b.jsonl"
+    },
+    {
+      "session_id": "session-b7b6a150-80c4-427b-bfbb-bf07c61f2b41",
+      "date": "2026-08-22",
+      "events": 109,
+      "bytes": 419388,
+      "truncated_outputs": 3,
+      "redactions": 0,
+      "file": "Jackapyun/2026-08-22/dsh__session-b7b6a150-80c4-427b-bfbb-bf07c61f2b41.jsonl"
+    },
+    {
+      "session_id": "session-7ec42864-340d-4763-9563-ecf5aa34d89d",
+      "date": "2026-09-08",
+      "events": 1901,
+      "bytes": 3399484,
+      "truncated_outputs": 0,
+      "redactions": 0,
+      "file": "Jackapyun/2026-09-08/dsh__session-7ec42864-340d-4763-9563-ecf5aa34d89d.jsonl"
+    }
+  ]
+}

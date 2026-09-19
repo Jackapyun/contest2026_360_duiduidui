@@ -1,0 +1,15 @@
+############################################################################
+# vendor/SpaceMiT/chips/k1-rcpu/Make.defs
+#
+# SpacemiT K1 RCPU (Nuclei N308) 芯片层（Makefile 构建兼容）
+############################################################################
+
+include common/Make.defs
+
+# 启动汇编：链接为第一个目标文件
+HEAD_ASRC = k1r_head.S
+
+# 芯片 C 源码
+CHIP_CSRCS  = k1r_start.c k1r_irq.c k1r_irq_dispatch.c
+CHIP_CSRCS += k1r_timerisr.c k1r_allocateheap.c
+CHIP_CSRCS += k1r_lowputc.c k1r_serial.c

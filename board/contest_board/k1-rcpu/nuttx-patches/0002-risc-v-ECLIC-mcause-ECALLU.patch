@@ -1,0 +1,33 @@
+From e27a03de8fc6968c80ea506e2f88c53a4a444b8c Mon Sep 17 00:00:00 2001
+From: Jackapyun <apyun18303446042@163.com>
+Date: Sat, 22 Aug 2026 12:28:41 +0800
+Subject: [PATCH 2/2] =?UTF-8?q?risc-v:=20=E5=B1=8F=E8=94=BD=20ECLIC=20?=
+ =?UTF-8?q?=E5=BC=82=E5=B8=B8=20mcause=20=E9=AB=98=E4=BD=8D=EF=BC=8C?=
+ =?UTF-8?q?=E9=81=BF=E5=85=8D=20ECALLU=20=E5=88=A4=E4=B8=8D=E4=B8=AD?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+N300/N308 ECLIC 用高位(如 bit28-29)编码异常，使 mcause 的低 12 位之外还带扩展位，
+导致 exception_common 里 'mcause==RISCV_IRQ_ECALLU(8)' 判不中，用户 syscall 落
+riscv_swint 默认分支 → DEBUGPANIC。在 CONFIG_LIB_SYSCALL 分支里，检查系统调用前
+先 'and s2,s2,0xfff' 保留低 12 位标准异常码（8=ECALLU）。仅生效于 PROTECTED
+(CONFIG_LIB_SYSCALL)，不影响 FLAT。
+---
+ arch/risc-v/src/common/riscv_exception_common.S | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/risc-v/src/common/riscv_exception_common.S b/arch/risc-v/src/common/riscv_exception_common.S
+index 3751011540a..0c0e6e3b00e 100644
+--- a/arch/risc-v/src/common/riscv_exception_common.S
++++ b/arch/risc-v/src/common/riscv_exception_common.S
+@@ -171,6 +171,9 @@ exception_common:
+   /* Is it a system call ? */
+ 
+   li         s3, RISCV_IRQ_ECALLU /* Is it a system call ? */
++  li         t0, 0xfff
++  and        s2, s2, t0          /* 屏蔽 ECLIC 高位：N300/308 ECLIC 用 bit28-29 等编码异常，
++                                  *   保留低 12 位标准异常码（8=ECALLU），否则 ECALLU 判不中 */
+   bne        s2, s3, handle_irq
+ 
+   /* Is it one of the reserved system calls ? */
